@@ -25,5 +25,5 @@ class Objectprep(object):
     def __init__(self, inputobject):
         self.starttime = inputobject.starttime
         self.customsamplesheet = inputobject.customsamplesheet
-        self.bcltofastq = inputobject.bcl2fastq
+        self.bcltofastq = inputobject.bcltofastq
         self.runmetadata = MetadataObject()
