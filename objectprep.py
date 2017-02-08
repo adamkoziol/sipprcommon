@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from sipprcommon.accessoryfunctions.accessoryFunctions import *
-import sipprcommon.createFastq as createFastq
-import sipprcommon.createObject as createObject
+import createFastq
+import createObject
 
 __author__ = 'adamkoziol'
 
@@ -18,12 +18,13 @@ class Objectprep(object):
             if self.customsamplesheet:
                 assert os.path.isfile(self.customsamplesheet), 'Cannot find custom sample sheet as specified {}' \
                     .format(self.customsamplesheet)
-            self.runmetadata = createFastq.FastqCreate(self)
+            self.samples = createFastq.FastqCreate(self)
         else:
-            self.runmetadata = createObject.ObjectCreation(self)
+            self.samples = createObject.ObjectCreation(self)
 
     def __init__(self, inputobject):
         self.starttime = inputobject.starttime
         self.customsamplesheet = inputobject.customsamplesheet
         self.bcltofastq = inputobject.bcltofastq
-        self.runmetadata = MetadataObject()
+        self.sequencepath = inputobject.sequencepath
+        self.samples = MetadataObject()
