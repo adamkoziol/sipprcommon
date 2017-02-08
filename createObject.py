@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from SPAdesPipeline.OLCspades.accessoryFunctions import *
+from accessoryfunctions.accessoryFunctions import *
 
 __author__ = 'adamkoziol'
 
@@ -51,6 +51,6 @@ class ObjectCreation(object):
             self.samples.append(metadata)
 
     def __init__(self, inputobject):
-        self.samples = []
+        self.samples = list()
         self.path = inputobject.sequencepath
         self.createobject()

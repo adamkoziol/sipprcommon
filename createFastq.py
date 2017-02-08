@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from SPAdesPipeline.OLCspades.fastqCreator import *
+from fastqCreator import *
 
 __author__ = 'adamkoziol'
 
