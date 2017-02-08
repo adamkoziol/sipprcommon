@@ -12,6 +12,11 @@ git submodule add https://github.com/adamkoziol/sipprcommon.git
 git submodule update --init --recursive
 ```
 
+## To pull changes to the submodule
+```
+git submodule update --remote --recursive
+```
+
 
 
 
