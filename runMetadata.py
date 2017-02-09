@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import os
-
 from accessoryfunctions.accessoryFunctions import MetadataObject, GenObject
 
 # Import ElementTree - try first to import the faster C version, if that doesn't

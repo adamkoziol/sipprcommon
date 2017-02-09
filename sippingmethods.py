@@ -359,22 +359,22 @@ class Sippr(object):
             sample[self.analysistype].sequences = seqresults
             self.parsequeue.task_done()
 
-    def __init__(self, inputobject):
+    # noinspection PyDefaultArgument
+    def __init__(self, inputobject, cutoff=0.98, matchbonus=2, builddict=dict(), extension='.bt2'):
         from Queue import Queue
-        from threading import Lock
         self.path = inputobject.path
         self.sequencepath = inputobject.sequencepath
         self.targetpath = inputobject.targetpath
         self.reportpath = inputobject.reportpath
-        self.metadata = inputobject.metadata
-        self.start = inputobject.start
+        self.metadata = inputobject.runmetadata.samples
+        self.start = inputobject.starttime
         self.analysistype = inputobject.analysistype
         self.cpus = inputobject.cpus
         self.homepath = inputobject.homepath
-        self.cutoff = inputobject.cutoff
-        self.matchbonus = inputobject.matchbonus
-        self.builddict = inputobject.builddict
-        self.bowtiebuildextension = inputobject.bowtiebuildextension
+        self.cutoff = cutoff
+        self.matchbonus = matchbonus
+        self.builddict = builddict
+        self.bowtiebuildextension = extension
         self.baitfile = str()
         self.hashfile = str()
         self.hashcall = str()
@@ -385,6 +385,5 @@ class Sippr(object):
         self.mapqueue = Queue(maxsize=self.cpus)
         self.indexqueue = Queue(maxsize=self.cpus)
         self.parsequeue = Queue(maxsize=self.cpus)
-        self.threadlock = Lock()
         # Run the analyses
         self.targets()
