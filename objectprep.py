@@ -13,8 +13,7 @@ class Objectprep(object):
         """
         Creates fastq files from an in-progress Illumina MiSeq run or create an object and moves files appropriately
         """
-        printtime('Starting genesippr analysis pipeline', self.starttime)
-        # Run the genesipping if necessary. Otherwise create the metadata object
+        # Create .fastq files if necessary. Otherwise create the metadata object
         if self.bcltofastq:
             if self.customsamplesheet:
                 assert os.path.isfile(self.customsamplesheet), 'Cannot find custom sample sheet as specified {}' \
