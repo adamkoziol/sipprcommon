@@ -2,6 +2,7 @@
 from glob import glob
 import runMetadata
 from offhours import Offhours
+from accessoryfunctions.accessoryFunctions import *
 # Import ElementTree - try first to import the faster C version, if that doesn't
 # work, try to import the regular version
 try:
@@ -174,42 +175,53 @@ class CreateFastq(object):
         config.write('{}Data/Intensities/BaseCalls/config.xml'.format(self.miseqfolder))
 
     def fastqmover(self):
-        """Links .fastq files created above to :self.path/:sample.name/"""
-        from shutil import move, copyfile
-        import errno
+        """Links .fastq files created above to :sequencepath"""
         from re import sub
+        import errno
         # Create the project path variable
         self.projectpath = self.fastqdestination + "/Project_" + self.projectname
+        # Create the sequence path if necessary
+        make_path(self.sequencepath)
         # Iterate through all the sample names
         for sample in self.metadata.samples:
+            # Make directory variables
+            outputdir = '{}{}'.format(self.sequencepath, sample.name)
+            sampledir = os.path.join(self.projectpath, 'Sample_{}'.format(sample.name))
             # Glob all the .gz files in the subfolders - projectpath/Sample_:sample.name/*.gz
-            for fastq in sorted(glob('{}/Sample_{}/*.gz'.format(self.projectpath, sample.name))):
+            for fastq in sorted(glob('{}/*.gz'.format(sampledir))):
                 # Try/except loop link .gz files to self.path
                 try:
-                    # Move fastq file to the path, but renames them first using the sample number.
-                    move(
-                        fastq, '{}{}'.format(self.path, os.path.basename(
-                            sub('\w{8}-\w{8}', 'S{}'.format(
-                                sample.run.SampleNumber), fastq))))
+                    # Symlink fastq file to the seq path, but rename them first using the sample number.
+                    # 2015-SEQ-1283_GGACTCCT-GCGTAAGA_L001_R1_001.fastq.gz is renamed:
+                    # 2015-SEQ-1283_S1_L001_R1_001.fastq.gz
+                    fastqname = os.path.basename(fastq)
+                    relativepath = os.path.relpath(sampledir, self.sequencepath)
+                    os.symlink(
+                        os.path.join(relativepath, fastqname),
+                        os.path.join(self.sequencepath,
+                                     os.path.basename(sub(sample.run.modifiedindex,
+                                                          'S{}'.format(sample.run.SampleNumber), fastq)))
+                    )
                 # Except os errors
                 except OSError as exception:
                     # If there is an exception other than the file exists, raise it
                     if exception.errno != errno.EEXIST:
                         raise
             # Repopulate .strainfastqfiles with the freshly-linked files
-            fastqfiles = glob('{}/{}*.fastq*'.format(self.fastqdestination, sample.name))
+            fastqfiles = glob('{}/{}*.fastq*'.format(self.sequencepath, sample.name))
             fastqfiles = [fastq for fastq in fastqfiles if 'trimmed' not in fastq]
             # Populate the metadata object with the name/path of the fastq files
             sample.general.fastqfiles = fastqfiles
             # Save the outputdir to the metadata object
-            sample.run.outputdirectory = self.fastqdestination
-        # Copy the sample sheet and the run info files to the path
-        copyfile(self.assertions.samplesheet, os.path.join(self.path, 'SampleSheet.csv'))
-        copyfile(os.path.join(self.miseqfolder, 'RunInfo.xml'), os.path.join(self.path, 'RunInfo.xml'))
+            sample.run.outputdirectory = outputdir
+            sample.general.bestassemblyfile = True
+            sample.general.trimmedcorrectedfastqfiles = sample.general.fastqfiles
+            sample.commands = GenObject()
 
     def __init__(self, inputobject):
         """Initialise variables"""
-        self.path = os.path.join(inputobject.path, '')
+        self.path = inputobject.path
+        self.sequencepath = inputobject.sequencepath
         self.start = inputobject.starttime
         self.fastqdestination = inputobject.fastqdestination
         self.homepath = inputobject.homepath
@@ -260,7 +272,6 @@ class CreateFastq(object):
 if __name__ == '__main__':
     import subprocess
     from time import time
-    from accessoryfunctions.accessoryFunctions import *
     # Get the current commit of the pipeline from git
     # Extract the path of the current script from the full path + file name
     homepath = os.path.split(os.path.abspath(__file__))[0]

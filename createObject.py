@@ -38,11 +38,13 @@ class ObjectCreation(object):
                     raise
             # Initialise the general and run categories
             metadata.general = GenObject()
+            metadata.run = GenObject()
             # Populate the .fastqfiles category of :self.metadata
             metadata.general.fastqfiles = [fastq for fastq in glob('{}/{}*.fastq*'.format(outputdir, fastqname))
                                            if 'trimmed' not in fastq]
             # Add the output directory to the metadata
             metadata.general.outputdirectory = outputdir
+            metadata.run.outputdirectory = outputdir
             metadata.general.bestassemblyfile = True
             metadata.general.trimmedcorrectedfastqfiles = metadata.general.fastqfiles
             # Initialise an attribute to store commands

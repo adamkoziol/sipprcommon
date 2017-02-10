@@ -65,7 +65,7 @@ class Sippr(object):
             # Create the .custom attribute
             setattr(sample, self.analysistype, GenObject())
             # Set attribute values
-            sample[self.analysistype].outputdir = sample.general.outputdirectory + '/' + self.analysistype
+            sample[self.analysistype].outputdir = sample.run.outputdirectory + '/' + self.analysistype
             # Create the folder (if necessary)
             make_path(sample[self.analysistype].outputdir)
             # Set more attributes
