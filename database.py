@@ -24,7 +24,6 @@ class Database(object):
             id     INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
             name   TEXT UNIQUE
           )
-
         ''')
         # Create a variable to store the names of the header values for each individual table
         # This will store a set of all the headers from all the strains, as there can be some variability present, as
@@ -93,7 +92,7 @@ class Database(object):
                 cursor.execute('''
                   INSERT OR IGNORE INTO {}
                   (sample_id) VALUES ("{}")
-                 '''.format(table, sampleid))
+                  '''.format(table, sampleid))
                 # Add the data to the table
                 try:
                     # Find the data for each table/column
