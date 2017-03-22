@@ -14,26 +14,78 @@ __author__ = 'adamkoziol'
 
 class Sippr(object):
     def targets(self):
-        printtime('Performing analysis with {} targets folder'.format(self.analysistype), self.start)
-        # There is a relatively strict databasing scheme necessary for the custom targets. Eventually, there will
-        # be a helper script to combine individual files into a properly formatted combined file
-        try:
-            self.baitfile = glob('{}*.fa*'.format(self.targetpath))[0]
-        # If the fasta file is missing, raise a custom error
-        except IndexError as e:
-            # noinspection PyPropertyAccess
-            e.args = ['Cannot find the combined fasta file in {}. Please note that the file must have a '
-                      '.fasta extension'.format(self.targetpath)]
-            raise
-        # Create the hash file of the baitfile
-        targetbase = self.baitfile.split('.')[0]
-        self.hashfile = targetbase + '.mhs.gz'
-        self.hashcall = 'cd {} && mirabait -b {} -k 19 -K {}'.format(self.targetpath, self.baitfile, self.hashfile)
-        if not os.path.isfile(self.hashfile):
-            call(self.hashcall, shell=True, stdout=self.devnull, stderr=self.devnull)
-        # Ensure that the hash file was successfully created
-        assert os.path.isfile(self.hashfile), u'Hashfile could not be created for the combined target file {0!r:s}' \
-            .format(self.baitfile)
+        if self.pipeline:
+            for sample in self.metadata:
+                setattr(sample, self.analysistype, GenObject())
+                # Set attributes
+                sample[self.analysistype].targetpath = os.path.join(self.targetpath, self.analysistype,
+                                                                    sample.mash.closestrefseqgenus, '')
+                sample[self.analysistype].baitfile = self.baitfile
+                # There is a relatively strict databasing scheme necessary for the custom targets. Eventually,
+                # there will be a helper script to combine individual files into a properly formatted combined file
+                try:
+                    sample[self.analysistype].baitfile = glob('{}*.fasta'
+                                                              .format(sample[self.analysistype].targetpath))[0]
+                # If the fasta file is missing, raise a custom error
+                except IndexError as e:
+                    # noinspection PyPropertyAccess
+                    e.args = ['Cannot find the combined fasta file in {}. Please note that the file must have a '
+                              '.fasta extension'.format(sample[self.analysistype].targetpath)]
+                    if os.path.isdir(sample[self.analysistype].targetpath):
+                        raise
+                    else:
+                        sample.general.bestassemblyfile = 'NA'
+
+            for sample in self.metadata:
+                if sample.general.bestassemblyfile != 'NA':
+                    # Create the hash file of the baitfile
+                    targetbase = sample[self.analysistype].baitfile.split('.')[0]
+                    sample[self.analysistype].hashfile = targetbase + '.mhs.gz'
+                    sample[self.analysistype].hashcall = 'cd {} && mirabait -b {} -k 19 -K {}'\
+                        .format(sample[self.analysistype].targetpath,
+                                sample[self.analysistype].baitfile,
+                                sample[self.analysistype].hashfile)
+                    if not os.path.isfile(sample[self.analysistype].hashfile):
+                        call(sample[self.analysistype].hashcall, shell=True, stdout=self.devnull, stderr=self.devnull)
+                    # Ensure that the hash file was successfully created
+                    assert os.path.isfile(sample[self.analysistype].hashfile), \
+                        u'Hashfile could not be created for the target file {0!r:s}'.format(
+                            sample[self.analysistype].baitfile)
+                    sample[self.analysistype].outputdir = os.path.join(sample.run.outputdirectory, self.analysistype)
+                    sample[self.analysistype].baitedfastq = \
+                        '{}/{}_targetMatches.fastq'.format(sample[self.analysistype].outputdir, self.analysistype)
+        else:
+            printtime('Performing analysis with {} targets folder'.format(self.analysistype), self.start)
+            # There is a relatively strict databasing scheme necessary for the custom targets. Eventually, there will
+            # be a helper script to combine individual files into a properly formatted combined file
+            try:
+                self.baitfile = glob('{}*.fa*'.format(self.targetpath))[0]
+            # If the fasta file is missing, raise a custom error
+            except IndexError as e:
+                # noinspection PyPropertyAccess
+                e.args = ['Cannot find the combined fasta file in {}. Please note that the file must have a '
+                          '.fasta extension'.format(self.targetpath)]
+                raise
+            # Create the hash file of the baitfile
+            targetbase = self.baitfile.split('.')[0]
+            self.hashfile = targetbase + '.mhs.gz'
+            self.hashcall = 'cd {} && mirabait -b {} -k 19 -K {}'.format(self.targetpath, self.baitfile, self.hashfile)
+            if not os.path.isfile(self.hashfile):
+                call(self.hashcall, shell=True, stdout=self.devnull, stderr=self.devnull)
+            # Ensure that the hash file was successfully created
+            assert os.path.isfile(self.hashfile), u'Hashfile could not be created for the target file {0!r:s}' \
+                .format(self.baitfile)
+            for sample in self.metadata:
+                setattr(sample, self.analysistype, GenObject())
+                # Set attributes
+                sample[self.analysistype].baitfile = self.baitfile
+                sample[self.analysistype].hashfile = self.hashfile
+                sample[self.analysistype].hashcall = self.hashcall
+                sample[self.analysistype].targetpath = self.targetpath
+                sample[self.analysistype].outputdir = os.path.join(sample.run.outputdirectory, self.analysistype)
+                sample[self.analysistype].baitedfastq = '{}/{}_targetMatches.fastq'.format(sample[self.analysistype]
+                                                                                           .outputdir,
+                                                                                           self.analysistype)
         # Bait
         self.baiting()
 
@@ -62,20 +114,8 @@ class Sippr(object):
         """
         while True:
             sample = self.baitqueue.get()
-            # Create the .custom attribute
-            setattr(sample, self.analysistype, GenObject())
-            # Set attribute values
-            sample[self.analysistype].outputdir = sample.run.outputdirectory + '/' + self.analysistype
             # Create the folder (if necessary)
             make_path(sample[self.analysistype].outputdir)
-            # Set more attributes
-            sample[self.analysistype].baitfile = self.baitfile
-            sample[self.analysistype].hashfile = self.hashfile
-            sample[self.analysistype].hashcall = self.hashcall
-            sample[self.analysistype].targetpath = self.targetpath
-            sample[self.analysistype].baitedfastq = '{}/{}_targetMatches.fastq'.format(sample[self.analysistype]
-                                                                                       .outputdir, self.analysistype)
-
             # Make the system call
             if len(sample.general.fastqfiles) == 2:
                 sample[self.analysistype].mirabaitcall = 'mirabait -c -B {} -t 4 -o {} -p {} {}' \
@@ -142,9 +182,6 @@ class Sippr(object):
                                                   **indict)
                 # Create the command to faidx index the bait file
                 sample[self.analysistype].faifile = sample[self.analysistype].baitfile + '.fai'
-                # In methods with multiple .fai files e.g. pathotyping different genera, this will be treated
-                # differently
-                self.faifile = sample[self.analysistype].faifile
                 samindex = SamtoolsFaidxCommandline(reference=sample[self.analysistype].baitfile)
                 # Add the commands (as strings) to the metadata
                 sample[self.analysistype].bowtie2align = str(bowtie2align)
@@ -242,31 +279,43 @@ class Sippr(object):
             threads.setDaemon(True)
             # Start the threading
             threads.start()
-        # Get the fai file into a dictionary to be used in parsing results
-        with open(self.faifile, 'rb') as faifile:
-            for line in faifile:
-                data = line.split('\t')
-                self.faidict[data[0]] = int(data[1])
         for sample in self.metadata:
             if sample.general.bestassemblyfile != 'NA':
+                # Get the fai file into a dictionary to be used in parsing results
+                with open(sample[self.analysistype].faifile, 'rb') as faifile:
+                    for line in faifile:
+                        data = line.split('\t')
+                        try:
+                            sample[self.analysistype].faidict[data[0]] = int(data[1])
+                        except KeyError:
+                            sample[self.analysistype].faidict = dict()
+                            sample[self.analysistype].faidict[data[0]] = int(data[1])
                 self.parsequeue.put(sample)
         self.parsequeue.join()
 
     def parse(self):
         import pysamstats
         import operator
+        import numpy
         while True:
             sample = self.parsequeue.get()
             # Initialise dictionaries to store parsed data
             matchdict = dict()
             depthdict = dict()
             seqdict = dict()
-            resultsdict = dict()
             snpdict = dict()
             gapdict = dict()
-            snpresults = dict()
-            gapresults = dict()
-            seqresults = dict()
+            maxdict = dict()
+            mindict = dict()
+            deviationdict = dict()
+            sample[self.analysistype].results = dict()
+            sample[self.analysistype].avgdepth = dict()
+            sample[self.analysistype].resultssnp = dict()
+            sample[self.analysistype].resultsgap = dict()
+            sample[self.analysistype].sequences = dict()
+            sample[self.analysistype].maxcoverage = dict()
+            sample[self.analysistype].mincoverage = dict()
+            sample[self.analysistype].standarddev = dict()
             # Variable to store the expected position in gene/allele
             pos = 0
             try:
@@ -302,22 +351,6 @@ class Sippr(object):
                         depthdict[rec['chrom']] += int(rec['reads_all'])
                     # Dictionary of bases and the number of times each base was observed per position
                     bases = {'A': rec['A'], 'C': rec['C'], 'G': rec['G'], 'T': rec['T']}
-                    # In strains with either multiple copies of the same gene, or multiple alleles with high sequence
-                    # identity, the reference mapper cannot determine where to map the reads, and will map both to each
-                    # sequence. This can be detected by finding positions where there are two bases that are almost
-                    # equally represented in the pileup.
-                    # TODO Implement variant calling
-                    # Make a shallow copy of bases
-                    # secondbases = dict(bases)
-                    # Remove the most represented base in this copy
-                    # del secondbases[max(bases.iteritems(), key=operator.itemgetter(1))[0]]
-                    # If there are at least 30% as many reads with the second most prevalent bases compared to the
-                    # most prevalent base
-                    # if float(max(secondbases.iteritems(), key=operator.itemgetter(1))[1]) / \
-                    #         float(max(bases.iteritems(), key=operator.itemgetter(1))[1]) > 0.3:
-                    # VARIANTS!
-                    #     print rec['pos'], bases, max(bases.iteritems(), key=operator.itemgetter(1)), \
-                    #         max(secondbases.iteritems(), key=operator.itemgetter(1)), rec['ref']
                     # If the most prevalent base (calculated with max() and operator.itemgetter()) does not match the
                     # reference base, add this prevalent base to seqdict
                     if max(bases.iteritems(), key=operator.itemgetter(1))[0] != rec['ref']:
@@ -332,6 +365,23 @@ class Sippr(object):
                             matchdict[rec['chrom']] = 1
                         else:
                             matchdict[rec['chrom']] += 1
+                    # Find the max and min coverage for each strain/gene combo
+                    try:
+                        maxdict[rec['chrom']] = int(rec['reads_all']) if \
+                            int(rec['reads_all']) >= maxdict[rec['chrom']] else maxdict[rec['chrom']]
+                    except KeyError:
+                        maxdict[rec['chrom']] = int(rec['reads_all'])
+                    try:
+                        mindict[rec['chrom']] = int(rec['reads_all']) if \
+                            int(rec['reads_all']) <= mindict[rec['chrom']] else mindict[rec['chrom']]
+                    except KeyError:
+                        mindict[rec['chrom']] = int(rec['reads_all'])
+                    # Create a list of all the depths in order to calculate the standard deviation
+                    try:
+                        deviationdict[rec['chrom']].append(int(rec['reads_all']))
+                    except KeyError:
+                        deviationdict[rec['chrom']] = list()
+                        deviationdict[rec['chrom']].append(int(rec['reads_all']))
             # If there are no results in the bam file, then pass over the strain
             except ValueError:
                 pass
@@ -339,24 +389,24 @@ class Sippr(object):
             for allele in sorted(matchdict):
                 # If the length of the match is greater or equal to the length of the gene/allele (multiplied by the
                 # cutoff value) as determined using faidx indexing, then proceed
-                if matchdict[allele] >= self.faidict[allele] * self.cutoff:
+                if matchdict[allele] >= sample[self.analysistype].faidict[allele] * self.cutoff:
                     # Calculate the average depth by dividing the total number of reads observed by the
                     # length of the gene
                     averagedepth = float(depthdict[allele]) / float(matchdict[allele])
-                    percentidentity = float(matchdict[allele]) / float(self.faidict[allele]) * 100
-                    # Only report a positive result if this average depth is greater than 4X
-                    if averagedepth > 4:
+                    percentidentity = float(matchdict[allele]) / float(sample[self.analysistype].faidict[allele]) * 100
+                    # Only report a positive result if this average depth is greater than 10X
+                    if averagedepth > 10:
                         # Populate resultsdict with the gene/allele name, the percent identity, and the average depth
-                        resultsdict.update({allele: {'{:.2f}'.format(percentidentity): '{:.2f}'.format(averagedepth)}})
+                        sample[self.analysistype].results.update({allele: '{:.2f}'.format(percentidentity)})
+                        sample[self.analysistype].avgdepth.update({allele: '{:.2f}'.format(averagedepth)})
                         # Add the SNP and gap results to dictionaries
-                        snpresults.update({allele: snpdict[allele]})
-                        gapresults.update({allele: gapdict[allele]})
-                        seqresults.update({allele: seqdict[allele]})
-            # Add these results to the sample object
-            sample[self.analysistype].results = resultsdict
-            sample[self.analysistype].resultssnp = snpresults
-            sample[self.analysistype].resultsgap = gapresults
-            sample[self.analysistype].sequences = seqresults
+                        sample[self.analysistype].resultssnp.update({allele: snpdict[allele]})
+                        sample[self.analysistype].resultsgap.update({allele: gapdict[allele]})
+                        sample[self.analysistype].sequences.update({allele: seqdict[allele]})
+                        sample[self.analysistype].maxcoverage.update({allele: maxdict[allele]})
+                        sample[self.analysistype].mincoverage.update({allele: mindict[allele]})
+                        sample[self.analysistype]\
+                            .standarddev.update({allele: '{:.2f}'.format(numpy.std(deviationdict[allele], ddof=1))})
             self.parsequeue.task_done()
 
     # noinspection PyDefaultArgument
@@ -370,6 +420,7 @@ class Sippr(object):
         self.start = inputobject.starttime
         self.analysistype = inputobject.analysistype
         self.cpus = inputobject.cpus
+        self.pipeline = inputobject.pipeline
         self.homepath = inputobject.homepath
         self.cutoff = cutoff
         self.matchbonus = matchbonus
@@ -378,8 +429,6 @@ class Sippr(object):
         self.baitfile = str()
         self.hashfile = str()
         self.hashcall = str()
-        self.faifile = str()
-        self.faidict = dict()
         self.devnull = open(os.devnull, 'wb')  # define /dev/null
         self.baitqueue = Queue(maxsize=self.cpus)
         self.mapqueue = Queue(maxsize=self.cpus)

@@ -214,6 +214,7 @@ class CreateFastq(object):
             sample.general.fastqfiles = fastqfiles
             # Save the outputdir to the metadata object
             sample.run.outputdirectory = outputdir
+            sample.general.outputdirectory = outputdir
             sample.general.bestassemblyfile = True
             sample.general.trimmedcorrectedfastqfiles = sample.general.fastqfiles
             sample.commands = GenObject()
