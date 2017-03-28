@@ -21,6 +21,12 @@ class Sippr(object):
                 sample[self.analysistype].targetpath = os.path.join(self.targetpath, self.analysistype,
                                                                     sample.mash.closestrefseqgenus, '')
                 sample[self.analysistype].baitfile = self.baitfile
+                # Ignore any species that do not match the desired species e.g. Listeria monocytogenes is acceptable
+                # while Listeria grayi is not. Right now, this sets the best assembly file to 'NA' to get the script
+                # to ignore this isolate, but something more fleshed out may be required in the future
+                for genus, species in self.taxonomy.items():
+                    if genus == sample.mash.closestrefseqgenus and species != sample.mash.closestrefseqspecies:
+                        sample.general.bestassemblyfile = 'NA'
                 # There is a relatively strict databasing scheme necessary for the custom targets. Eventually,
                 # there will be a helper script to combine individual files into a properly formatted combined file
                 try:
@@ -395,7 +401,7 @@ class Sippr(object):
                     averagedepth = float(depthdict[allele]) / float(matchdict[allele])
                     percentidentity = float(matchdict[allele]) / float(sample[self.analysistype].faidict[allele]) * 100
                     # Only report a positive result if this average depth is greater than 10X
-                    if averagedepth > 10:
+                    if averagedepth > 5:
                         # Populate resultsdict with the gene/allele name, the percent identity, and the average depth
                         sample[self.analysistype].results.update({allele: '{:.2f}'.format(percentidentity)})
                         sample[self.analysistype].avgdepth.update({allele: '{:.2f}'.format(averagedepth)})
@@ -422,6 +428,7 @@ class Sippr(object):
         self.cpus = inputobject.cpus
         self.pipeline = inputobject.pipeline
         self.homepath = inputobject.homepath
+        self.taxonomy = inputobject.taxonomy
         self.cutoff = cutoff
         self.matchbonus = matchbonus
         self.builddict = builddict
