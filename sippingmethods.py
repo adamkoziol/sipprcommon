@@ -18,7 +18,7 @@ class Sippr(object):
         # There is a relatively strict databasing scheme necessary for the custom targets. Eventually, there will
         # be a helper script to combine individual files into a properly formatted combined file
         try:
-            self.baitfile = glob('{}*.fa*'.format(self.targetpath))[0]
+            self.baitfile = glob('{}*.fas*'.format(self.targetpath))[0]
         # If the fasta file is missing, raise a custom error
         except IndexError as e:
             # noinspection PyPropertyAccess
