@@ -190,7 +190,7 @@ class CreateFastq(object):
             # Glob all the .gz files in the subfolders - projectpath/Sample_:sample.name/*.gz
             for fastq in sorted(glob('{}/*.gz'.format(sampledir))):
                 fastqname = os.path.basename(fastq)
-                if self.copy:
+                if not self.copy:
                     # Try/except loop link .gz files to self.path
                     try:
                         # Symlink fastq file to the seq path, but rename them first using the sample number.
@@ -221,6 +221,7 @@ class CreateFastq(object):
             sample.general.fastqfiles = fastqfiles
             # Save the outputdir to the metadata object
             sample.run.outputdirectory = outputdir
+            sample.general.outputdirectory = outputdir
             sample.general.bestassemblyfile = True
             sample.general.trimmedcorrectedfastqfiles = sample.general.fastqfiles
             sample.commands = GenObject()
@@ -323,6 +324,7 @@ if __name__ == '__main__':
                              'e.g. /home/name/folder/BackupSampleSheet.csv. Note that this sheet must still have the '
                              'same format of Illumina SampleSheet.csv files')
     parser.add_argument('-C', '--copy',
+                        action='store_true',
                         help='Normally, the program will create symbolic links of the files into the sequence path, '
                              'however, the are occasions when it is necessary to copy the files instead')
     # Get the arguments into an object
