@@ -189,24 +189,31 @@ class CreateFastq(object):
             sampledir = os.path.join(self.projectpath, 'Sample_{}'.format(sample.name))
             # Glob all the .gz files in the subfolders - projectpath/Sample_:sample.name/*.gz
             for fastq in sorted(glob('{}/*.gz'.format(sampledir))):
-                # Try/except loop link .gz files to self.path
-                try:
-                    # Symlink fastq file to the seq path, but rename them first using the sample number.
-                    # 2015-SEQ-1283_GGACTCCT-GCGTAAGA_L001_R1_001.fastq.gz is renamed:
-                    # 2015-SEQ-1283_S1_L001_R1_001.fastq.gz
-                    fastqname = os.path.basename(fastq)
-                    relativepath = os.path.relpath(sampledir, self.sequencepath)
-                    os.symlink(
-                        os.path.join(relativepath, fastqname),
-                        os.path.join(self.sequencepath,
-                                     os.path.basename(sub(sample.run.modifiedindex,
-                                                          'S{}'.format(sample.run.SampleNumber), fastq)))
-                    )
-                # Except os errors
-                except OSError as exception:
-                    # If there is an exception other than the file exists, raise it
-                    if exception.errno != errno.EEXIST:
-                        raise
+                fastqname = os.path.basename(fastq)
+                if not self.copy:
+                    # Try/except loop link .gz files to self.path
+                    try:
+                        # Symlink fastq file to the seq path, but rename them first using the sample number.
+                        # 2015-SEQ-1283_GGACTCCT-GCGTAAGA_L001_R1_001.fastq.gz is renamed:
+                        # 2015-SEQ-1283_S1_L001_R1_001.fastq.gz
+                        relativepath = os.path.relpath(sampledir, self.sequencepath)
+                        os.symlink(
+                            os.path.join(relativepath, fastqname),
+                            os.path.join(self.sequencepath,
+                                         os.path.basename(sub(sample.run.modifiedindex,
+                                                              'S{}'.format(sample.run.SampleNumber), fastq)))
+                        )
+                    # Except os errors
+                    except OSError as exception:
+                        # If there is an exception other than the file exists, raise it
+                        if exception.errno != errno.EEXIST:
+                            raise
+                else:
+                    import shutil
+                    shutil.copyfile(fastq, os.path.join(self.sequencepath,
+                                                        os.path.basename(sub(sample.run.modifiedindex,
+                                                                             'S{}'.format(sample.run.SampleNumber),
+                                                                             fastq))))
             # Repopulate .strainfastqfiles with the freshly-linked files
             fastqfiles = glob('{}/{}*.fastq*'.format(self.sequencepath, sample.name))
             fastqfiles = [fastq for fastq in fastqfiles if 'trimmed' not in fastq]
@@ -234,6 +241,7 @@ class CreateFastq(object):
         self.reverselength = inputobject.reverselength if self.numreads > 1 else '0'
         self.readsneeded = 0
         self.commit = inputobject.commit
+        self.copy = inputobject.copy
         if inputobject.miseqpath:
             self.miseqpath = os.path.join(inputobject.miseqpath, "")
         else:
@@ -315,6 +323,10 @@ if __name__ == '__main__':
                         help='Path of folder containing a custom sample sheet and name of sample sheet file '
                              'e.g. /home/name/folder/BackupSampleSheet.csv. Note that this sheet must still have the '
                              'same format of Illumina SampleSheet.csv files')
+    parser.add_argument('-C', '--copy',
+                        action='store_true',
+                        help='Normally, the program will create symbolic links of the files into the sequence path, '
+                             'however, the are occasions when it is necessary to copy the files instead')
     # Get the arguments into an object
     arguments = parser.parse_args()
     arguments.starttime = time()
