@@ -401,7 +401,7 @@ class Sippr(object):
                     averagedepth = float(depthdict[allele]) / float(matchdict[allele])
                     percentidentity = float(matchdict[allele]) / float(sample[self.analysistype].faidict[allele]) * 100
                     # Only report a positive result if this average depth is greater than 10X
-                    if averagedepth > 5:
+                    if averagedepth > 10:
                         # Populate resultsdict with the gene/allele name, the percent identity, and the average depth
                         sample[self.analysistype].results.update({allele: '{:.2f}'.format(percentidentity)})
                         sample[self.analysistype].avgdepth.update({allele: '{:.2f}'.format(averagedepth)})

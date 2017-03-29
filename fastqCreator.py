@@ -85,7 +85,7 @@ class CreateFastq(object):
         while len(cycles) < self.readsneeded:
             printtime('Currently at {} cycles. Waiting until the MiSeq reaches cycle {}'.format(len(cycles),
                       self.readsneeded), self.start)
-            sleep(1800)
+            sleep(300)
             cycles = glob('{}Data/Intensities/BaseCalls/L001/C*'.format(self.miseqfolder))
         # configureBClToFastq requires :self.miseqfolder//Data/Intensities/BaseCalls/config.xml in order to work
         # When you download runs from BaseSpace, this file is not provided. There is an empty config.xml file that

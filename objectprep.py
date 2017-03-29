@@ -38,4 +38,5 @@ class Objectprep(object):
         self.sequencepath = inputobject.sequencepath
         self.homepath = inputobject.homepath
         self.commit = inputobject.commit
+        self.copy = inputobject.copy
         self.samples = MetadataObject()
