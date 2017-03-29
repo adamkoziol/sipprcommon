@@ -14,6 +14,26 @@ __author__ = 'adamkoziol'
 
 class Sippr(object):
     def targets(self):
+        printtime('Performing analysis with {} targets folder'.format(self.analysistype), self.start)
+        # There is a relatively strict databasing scheme necessary for the custom targets. Eventually, there will
+        # be a helper script to combine individual files into a properly formatted combined file
+        try:
+            self.baitfile = glob('{}*.fas*'.format(self.targetpath))[0]
+        # If the fasta file is missing, raise a custom error
+        except IndexError as e:
+            # noinspection PyPropertyAccess
+            e.args = ['Cannot find the combined fasta file in {}. Please note that the file must have a '
+                      '.fasta extension'.format(self.targetpath)]
+            raise
+        # Create the hash file of the baitfile
+        targetbase = self.baitfile.split('.')[0]
+        self.hashfile = targetbase + '.mhs.gz'
+        self.hashcall = 'cd {} && mirabait -b {} -k 19 -K {}'.format(self.targetpath, self.baitfile, self.hashfile)
+        if not os.path.isfile(self.hashfile):
+            call(self.hashcall, shell=True, stdout=self.devnull, stderr=self.devnull)
+        # Ensure that the hash file was successfully created
+        assert os.path.isfile(self.hashfile), u'Hashfile could not be created for the combined target file {0!r:s}' \
+            .format(self.baitfile)
         if self.pipeline:
             for sample in self.metadata:
                 setattr(sample, self.analysistype, GenObject())
