@@ -18,8 +18,17 @@ class Objectprep(object):
             if self.customsamplesheet:
                 assert os.path.isfile(self.customsamplesheet), 'Cannot find custom sample sheet as specified {}' \
                     .format(self.customsamplesheet)
-            # self.samples = createFastq.FastqCreate(self)
+            #
             self.samples = fastqCreator.CreateFastq(self)
+            for key, value in vars(self.samples).items():
+                if key == 'metadata':
+                    self.forward = vars(value)['header'].forwardlength
+                    self.reverse = vars(value)['header'].reverselength
+                    self.header = vars(value)['header'].datastore
+                elif key == 'samples':
+                    self.index = value[0].run.modifiedindex
+                    self.run = [x.run.datastore for x in value]
+
         else:
             self.samples = createObject.ObjectCreation(self)
 
@@ -40,3 +49,8 @@ class Objectprep(object):
         self.commit = inputobject.commit
         self.copy = inputobject.copy
         self.samples = MetadataObject()
+        self.forward = str()
+        self.reverse = str()
+        self.index = str()
+        self.header = dict()
+        self.run = dict()

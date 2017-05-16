@@ -3,12 +3,13 @@ from glob import glob
 from subprocess import call
 from threading import Thread
 from Bio.Sequencing.Applications import *
-from sipprcommon.accessoryfunctions.accessoryFunctions import *
-from sipprcommon.bowtie import *
+from .accessoryfunctions.accessoryFunctions import *
+from .accessoryfunctions.metadataprinter import *
+from .bowtie import *
 try:
-    from cStringIO import StringIO
+    from io import BytesIO as StringIO
 except ImportError:
-    from StringIO import StringIO
+    from io import StringIO
 __author__ = 'adamkoziol'
 
 
@@ -16,33 +17,42 @@ class Sippr(object):
     def targets(self):
         printtime('Performing analysis with {} targets folder'.format(self.analysistype), self.start)
         if self.pipeline:
-            for sample in self.metadata:
-                setattr(sample, self.analysistype, GenObject())
-                # Set attributes
-                sample[self.analysistype].targetpath = os.path.join(self.targetpath, self.analysistype,
-                                                                    sample.mash.closestrefseqgenus, '')
-                # Ignore any species that do not match the desired species e.g. Listeria monocytogenes is acceptable
-                # while Listeria grayi is not. Right now, this sets the best assembly file to 'NA' to get the script
-                # to ignore this isolate, but something more fleshed out may be required in the future
-                for genus, species in self.taxonomy.items():
-                    if genus == sample.mash.closestrefseqgenus and species != sample.mash.closestrefseqspecies:
-                        sample.general.bestassemblyfile = 'NA'
-                # There is a relatively strict databasing scheme necessary for the custom targets. Eventually,
-                # there will be a helper script to combine individual files into a properly formatted combined file
-                try:
-                    sample[self.analysistype].baitfile = glob('{}*.fasta'
-                                                              .format(sample[self.analysistype].targetpath))[0]
-                # If the fasta file is missing, raise a custom error
-                except IndexError as e:
-                    # noinspection PyPropertyAccess
-                    e.args = ['Cannot find the combined fasta file in {}. Please note that the file must have a '
-                              '.fasta extension'.format(sample[self.analysistype].targetpath)]
-                    if os.path.isdir(sample[self.analysistype].targetpath):
-                        raise
-                    else:
-                        sample.general.bestassemblyfile = 'NA'
+            for sample in self.runmetadata:
+                if sample.general.bestassemblyfile != 'NA':
+                    setattr(sample, self.analysistype, GenObject())
+                    # Set attributes
+                    try:
+                        sample[self.analysistype].targetpath = \
+                            os.path.join(self.targetpath, self.analysistype, sample.mash.closestrefseqgenus, '')
+                    except KeyError:
+                        sample[self.analysistype].targetpath = \
+                            os.path.join(self.targetpath, self.analysistype, sample.general.closestrefseqgenus, '')
 
-            for sample in self.metadata:
+                    # Ignore any species that do not match the desired species e.g. Listeria monocytogenes is acceptable
+                    # while Listeria grayi is not. Right now, this sets the best assembly file to 'NA' to get the script
+                    # to ignore this isolate, but something more fleshed out may be required in the future
+                    for genus, species in self.taxonomy.items():
+                        try:
+                            if genus == sample.mash.closestrefseqgenus and species != sample.mash.closestrefseqspecies:
+                                sample.general.bestassemblyfile = 'NA'
+                        except KeyError:
+                            pass
+                    # There is a relatively strict databasing scheme necessary for the custom targets. Eventually,
+                    # there will be a helper script to combine individual files into a properly formatted combined file
+                    try:
+                        sample[self.analysistype].baitfile = glob('{}*.fasta'
+                                                                  .format(sample[self.analysistype].targetpath))[0]
+                    # If the fasta file is missing, raise a custom error
+                    except IndexError as e:
+                        # noinspection PyPropertyAccess
+                        e.args = ['Cannot find the combined fasta file in {}. Please note that the file must have a '
+                                  '.fasta extension'.format(sample[self.analysistype].targetpath)]
+                        if os.path.isdir(sample[self.analysistype].targetpath):
+                            raise
+                        else:
+                            sample.general.bestassemblyfile = 'NA'
+
+            for sample in self.runmetadata:
                 if sample.general.bestassemblyfile != 'NA':
                     # Create the hash file of the baitfile
                     targetbase = sample[self.analysistype].baitfile.split('.')[0]
@@ -67,11 +77,22 @@ class Sippr(object):
             try:
                 self.baitfile = glob('{}*.fasta'.format(self.targetpath))[0]
             # If the fasta file is missing, raise a custom error
-            except IndexError as e:
-                # noinspection PyPropertyAccess
-                e.args = ['Cannot find the combined fasta file in {}. Please note that the file must have a '
-                          '.fasta extension'.format(self.targetpath)]
-                raise
+            except IndexError:
+                # Combine any .tfa files in the directory into a combined targets .fasta file
+                from Bio import SeqIO
+                tfafiles = glob(os.path.join(self.targetpath, '*.tfa'))
+                if tfafiles:
+                    with open(os.path.join(self.targetpath, 'combinedtargets.fasta'), 'wb') as combined:
+                        for tfafile in tfafiles:
+                            for record in SeqIO.parse(tfafile, 'fasta'):
+                                SeqIO.write(record, combined, 'fasta')
+                try:
+                    self.baitfile = glob('{}*.fasta'.format(self.targetpath))[0]
+                except IndexError as e:
+                    # noinspection PyPropertyAccess
+                    e.args = ['Cannot find the combined fasta file in {}. Please note that the file must have a '
+                              '.fasta extension'.format(self.targetpath)]
+                    raise
             # Create the hash file of the baitfile
             targetbase = self.baitfile.split('.')[0]
             self.hashfile = targetbase + '.mhs.gz'
@@ -81,7 +102,7 @@ class Sippr(object):
             # Ensure that the hash file was successfully created
             assert os.path.isfile(self.hashfile), u'Hashfile could not be created for the target file {0!r:s}' \
                 .format(self.baitfile)
-            for sample in self.metadata:
+            for sample in self.runmetadata:
                 setattr(sample, self.analysistype, GenObject())
                 # Set attributes
                 sample[self.analysistype].baitfile = self.baitfile
@@ -99,14 +120,14 @@ class Sippr(object):
         # Perform baiting
         printtime('Performing kmer baiting of fastq files with {} targets'.format(self.analysistype), self.start)
         # Create and start threads for each fasta file in the list
-        for i in range(len(self.metadata)):
+        for i in range(len(self.runmetadata)):
             # Send the threads to the bait method
             threads = Thread(target=self.bait, args=())
             # Set the daemon to true - something to do with thread management
             threads.setDaemon(True)
             # Start the threading
             threads.start()
-        for sample in self.metadata:
+        for sample in self.runmetadata:
             if sample.general.bestassemblyfile != 'NA':
                 # Add the sample to the queue
                 self.baitqueue.put(sample)
@@ -138,14 +159,14 @@ class Sippr(object):
 
     def mapping(self):
         printtime('Performing reference mapping', self.start)
-        for i in range(len(self.metadata)):
+        for i in range(len(self.runmetadata)):
             # Send the threads to
             threads = Thread(target=self.map, args=())
             # Set the daemon to True - something to do with thread management
             threads.setDaemon(True)
             # Start the threading
             threads.start()
-        for sample in self.metadata:
+        for sample in self.runmetadata:
             if sample.general.bestassemblyfile != 'NA':
                 # Set the path/name for the sorted bam file to be created
                 sample[self.analysistype].sortedbam = '{}/{}_sorted.bam'.format(sample[self.analysistype].outputdir,
@@ -244,14 +265,14 @@ class Sippr(object):
 
     def indexing(self):
         printtime('Indexing sorted bam files', self.start)
-        for i in range(len(self.metadata)):
+        for i in range(len(self.runmetadata)):
             # Send the threads to
             threads = Thread(target=self.index, args=())
             # Set the daemon to true - something to do with thread management
             threads.setDaemon(True)
             # Start the threading
             threads.start()
-        for sample in self.metadata:
+        for sample in self.runmetadata:
             if sample.general.bestassemblyfile != 'NA':
                 bamindex = SamtoolsIndexCommandline(input=sample[self.analysistype].sortedbam)
                 sample[self.analysistype].sortedbai = sample[self.analysistype].sortedbam + '.bai'
@@ -278,14 +299,14 @@ class Sippr(object):
 
     def parsing(self):
         printtime('Parsing sorted bam files', self.start)
-        for i in range(len(self.metadata)):
+        for i in range(len(self.runmetadata)):
             # Send the threads to
             threads = Thread(target=self.parse, args=())
             # Set the daemon to true - something to do with thread management
             threads.setDaemon(True)
             # Start the threading
             threads.start()
-        for sample in self.metadata:
+        for sample in self.runmetadata:
             if sample.general.bestassemblyfile != 'NA':
                 # Get the fai file into a dictionary to be used in parsing results
                 with open(sample[self.analysistype].faifile, 'rb') as faifile:
@@ -359,8 +380,8 @@ class Sippr(object):
                     bases = {'A': rec['A'], 'C': rec['C'], 'G': rec['G'], 'T': rec['T']}
                     # If the most prevalent base (calculated with max() and operator.itemgetter()) does not match the
                     # reference base, add this prevalent base to seqdict
-                    if max(bases.iteritems(), key=operator.itemgetter(1))[0] != rec['ref']:
-                        seqdict[rec['chrom']] += max(bases.iteritems(), key=operator.itemgetter(1))[0]
+                    if max(bases.items(), key=operator.itemgetter(1))[0] != rec['ref']:
+                        seqdict[rec['chrom']] += max(bases.items(), key=operator.itemgetter(1))[0]
                         # Increment the running total of the number of SNPs
                         snpdict[rec['chrom']] += 1
                     else:
@@ -422,7 +443,7 @@ class Sippr(object):
         self.sequencepath = inputobject.sequencepath
         self.targetpath = inputobject.targetpath
         self.reportpath = inputobject.reportpath
-        self.metadata = inputobject.runmetadata.samples
+        self.runmetadata = inputobject.runmetadata.samples
         self.start = inputobject.starttime
         self.analysistype = inputobject.analysistype
         self.cpus = inputobject.cpus
@@ -443,3 +464,6 @@ class Sippr(object):
         self.parsequeue = Queue(maxsize=self.cpus)
         # Run the analyses
         self.targets()
+        # Print the metadata
+        printer = MetadataPrinter(self)
+        printer.printmetadata()

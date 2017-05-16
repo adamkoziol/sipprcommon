@@ -30,7 +30,7 @@ class CreateFastq(object):
         indexlength = int()
         # bcl2fastq requires an older version of the sample sheet, this recreates the required version
         # Create the new sample sheet
-        with open('{}/SampleSheet_modified.csv'.format(self.fastqdestination), "wb") as modifiedsamplesheet:
+        with open(os.path.join(self.fastqdestination, 'SampleSheet_modified.csv'), "wb") as modifiedsamplesheet:
             # Write the required headings to the file
             modifiedsamplesheet.write(
                 "FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject\n")
@@ -78,19 +78,20 @@ class CreateFastq(object):
                   'Fastq destination: {},\n'
                   'SampleSheet: {}'
                   .format(number, samplecount, samples, self.miseqpath, self.miseqfolder,
-                          self.fastqdestination, '{}/SampleSheet_modified.csv'.format(self.fastqdestination)),
+                          self.fastqdestination, os.path.join(self.fastqdestination, 'SampleSheet_modified.csv')),
                   self.start)
         # Count the number of completed cycles in the run of interest
-        cycles = glob('{}Data/Intensities/BaseCalls/L001/C*'.format(self.miseqfolder))
+        cycles = glob(os.path.join(self.miseqpath, self.miseqfolder, 'Data', 'Intensities', 'BaseCalls', 'L001', 'C*'))
         while len(cycles) < self.readsneeded:
             printtime('Currently at {} cycles. Waiting until the MiSeq reaches cycle {}'.format(len(cycles),
                       self.readsneeded), self.start)
             sleep(300)
-            cycles = glob('{}Data/Intensities/BaseCalls/L001/C*'.format(self.miseqfolder))
+            cycles = glob(os.path.join(self.miseqpath, self.miseqfolder,
+                                       'Data', 'Intensities', 'BaseCalls', 'L001', 'C*'))
         # configureBClToFastq requires :self.miseqfolder//Data/Intensities/BaseCalls/config.xml in order to work
         # When you download runs from BaseSpace, this file is not provided. There is an empty config.xml file that
         # can be populated with run-specific values and moved to the appropriate folder
-        if not os.path.isfile('{}Data/Intensities/BaseCalls/config.xml'.format(self.miseqfolder)):
+        if not os.path.isfile(os.path.join(self.miseqfolder, 'Data', 'Intensities', 'BaseCalls', 'config.xml')):
             self.configfilepopulator()
         # Define the bcl2fastq system call
         bclcall = "configureBclToFastq.pl --input-dir {}Data/Intensities/BaseCalls " \
@@ -100,7 +101,7 @@ class CreateFastq(object):
         # Define the nohup system call
         nohupcall = "cd {} && {}".format(self.fastqdestination, nohup)
         fnull = open(os.devnull, 'wb')
-        if not os.path.isdir("{}/Project_{}".format(self.fastqdestination, self.projectname)):
+        if not os.path.isdir(os.path.join(self.fastqdestination, 'Project_{}'.format(self.projectname))):
             # Call configureBclToFastq.pl
             printtime('Running bcl2fastq', self.start)
             # Run the commands
@@ -132,7 +133,7 @@ class CreateFastq(object):
         parameters = {'RunFolder': self.runid, 'RunFolderDate': self.metadata.date.replace("-", ""),
                       'RunFolderId': self.metadata.runnumber, 'RunFlowcellId': self.metadata.flowcell}
         # Load the xml file using element tree
-        config = ElementTree.parse("{}/config.xml".format(self.homepath))
+        config = ElementTree.parse(os.path.join(self.homepath, 'config.xml'))
         # Get the root of the tree
         configroot = config.getroot()
         # The run node is the only child node of the root
@@ -172,36 +173,41 @@ class CreateFastq(object):
                                 # starts 1 cycle after the first run) plus the current iterator
                                 barcode.text = str(self.forwardlength + 1 + cycle)
         # Write the modified config file to the desired location
-        config.write('{}Data/Intensities/BaseCalls/config.xml'.format(self.miseqfolder))
+        config.write(os.path.join(self.miseqfolder, 'Data', 'Intensities', 'BaseCalls', 'config.xml'))
 
     def fastqmover(self):
         """Links .fastq files created above to :sequencepath"""
         from re import sub
         import errno
         # Create the project path variable
-        self.projectpath = self.fastqdestination + "/Project_" + self.projectname
+        self.projectpath = os.path.join(self.fastqdestination, "Project_{}".format(self.projectname))
         # Create the sequence path if necessary
         make_path(self.sequencepath)
         # Iterate through all the sample names
         for sample in self.metadata.samples:
             # Make directory variables
-            outputdir = '{}{}'.format(self.sequencepath, sample.name)
+            outputdir = os.path.join(self.sequencepath, sample.name)
             sampledir = os.path.join(self.projectpath, 'Sample_{}'.format(sample.name))
             # Glob all the .gz files in the subfolders - projectpath/Sample_:sample.name/*.gz
-            for fastq in sorted(glob('{}/*.gz'.format(sampledir))):
+            for fastq in sorted(glob(os.path.join(sampledir, '*.gz'))):
                 fastqname = os.path.basename(fastq)
+                # Set the name of the destination file renamed with the sample number.
+                # 2015-SEQ-1283_GGACTCCT-GCGTAAGA_L001_R1_001.fastq.gz is renamed:
+                # 2015-SEQ-1283_S1_L001_R1_001.fastq.gz
+                outputfile = os.path.join(self.sequencepath,
+                                          os.path.basename(
+                                              sub(
+                                                  sample.run.modifiedindex,
+                                                  'S{}'.format(sample.run.SampleNumber),
+                                                  fastq)))
                 if not self.copy:
                     # Try/except loop link .gz files to self.path
                     try:
-                        # Symlink fastq file to the seq path, but rename them first using the sample number.
-                        # 2015-SEQ-1283_GGACTCCT-GCGTAAGA_L001_R1_001.fastq.gz is renamed:
-                        # 2015-SEQ-1283_S1_L001_R1_001.fastq.gz
+                        # Symlink fastq file to the seq path
                         relativepath = os.path.relpath(sampledir, self.sequencepath)
                         os.symlink(
                             os.path.join(relativepath, fastqname),
-                            os.path.join(self.sequencepath,
-                                         os.path.basename(sub(sample.run.modifiedindex,
-                                                              'S{}'.format(sample.run.SampleNumber), fastq)))
+                            os.path.join(outputfile)
                         )
                     # Except os errors
                     except OSError as exception:
@@ -210,12 +216,11 @@ class CreateFastq(object):
                             raise
                 else:
                     import shutil
-                    shutil.copyfile(fastq, os.path.join(self.sequencepath,
-                                                        os.path.basename(sub(sample.run.modifiedindex,
-                                                                             'S{}'.format(sample.run.SampleNumber),
-                                                                             fastq))))
-            # Repopulate .strainfastqfiles with the freshly-linked files
-            fastqfiles = glob('{}/{}*.fastq*'.format(self.sequencepath, sample.name))
+                    # Copy the file if it doesn't already exist
+                    if not os.path.isfile(outputfile):
+                        shutil.copyfile(fastq, outputfile)
+            # Repopulate .strainfastqfiles with the freshly-linked/copied files
+            fastqfiles = glob(os.path.join(self.sequencepath, '{}*.fastq*'.format(sample.name)))
             fastqfiles = [fastq for fastq in fastqfiles if 'trimmed' not in fastq]
             # Populate the metadata object with the name/path of the fastq files
             sample.general.fastqfiles = fastqfiles
@@ -233,9 +238,9 @@ class CreateFastq(object):
         self.start = inputobject.starttime
         self.fastqdestination = inputobject.fastqdestination
         self.homepath = inputobject.homepath
-        self.miseqout = ""
+        self.miseqout = str()
         self.projectname = 'fastqCreation'
-        self.projectpath = ""
+        self.projectpath = str()
         self.numreads = inputobject.numreads
         self.forwardlength = inputobject.forwardlength
         self.reverselength = inputobject.reverselength if self.numreads > 1 else '0'
@@ -243,9 +248,8 @@ class CreateFastq(object):
         self.commit = inputobject.commit
         self.copy = inputobject.copy
         if inputobject.miseqpath:
-            self.miseqpath = os.path.join(inputobject.miseqpath, "")
+            self.miseqpath = os.path.join(inputobject.miseqpath, '')
         else:
-            print inputobject.miseqfolder
             print('MiSeqPath argument is required in order to use the fastq creation module. Please provide this '
                   'argument and run the script again.')
             quit()
@@ -260,8 +264,8 @@ class CreateFastq(object):
         self.miseqfolder = self.assertions.miseqfolder
         self.miseqfoldername = self.assertions.miseqfoldername
         self.customsamplesheet = self.assertions.customsamplesheet if self.assertions.customsamplesheet \
-            else '{}SampleSheet.csv'.format(self.miseqfolder)
-        self.runinfo = '{}RunInfo.xml'.format(self.miseqfolder)
+            else os.path.join(self.miseqfolder, 'SampleSheet.csv')
+        self.runinfo = os.path.join(self.miseqfolder, 'RunInfo.xml')
         # Parse the sample sheet and other metadata files here
         self.metadata = runMetadata.Metadata(self)
         self.metadata.parseruninfo()
