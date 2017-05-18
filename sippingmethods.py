@@ -6,10 +6,7 @@ from Bio.Sequencing.Applications import *
 from .accessoryfunctions.accessoryFunctions import *
 from .accessoryfunctions.metadataprinter import *
 from .bowtie import *
-try:
-    from io import BytesIO as StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 __author__ = 'adamkoziol'
 
 
@@ -178,21 +175,31 @@ class Sippr(object):
                                                        bt2=sample[self.analysistype].baitfilenoext,
                                                        **self.builddict)
                 # Use samtools wrapper to set up the bam sorting command
-                samsort = SamtoolsSortCommandline(input_bam=sample[self.analysistype].sortedbam,
+                ''''''
+                samsort = SamtoolsSortCommandline(input=sample[self.analysistype].sortedbam,
                                                   o=True,
                                                   out_prefix="-")
+                # samsort.o = True,
+                # samsort.out_prefix = '-'
+                # samsort.input = sample[self.analysistype].sortedbam
                 # Create a list of programs to which data are piped as part of the reference mapping
+                # samtoolscl = SamtoolsViewCommandline()
+                # samtoolscl.b = True
+                # samtoolscl.S = True
+                # samtoolscl.h = True
+                # samtoolscl.input = '-'
                 samtools = [
                     # When bowtie2 maps reads to all possible locations rather than choosing a 'best' placement, the
                     # SAM header for that read is set to 'secondary alignment', or 256. Please see:
                     # http://davetang.org/muse/2014/03/06/understanding-bam-flags/ The script below reads in the stdin
                     # and subtracts 256 from headers which include 256
                     'python {}/sipprcommon/editsamheaders.py'.format(self.homepath),
-                    # # Use samtools wrapper to set up the samtools view
+                    # Use samtools wrapper to set up the samtools view
                     SamtoolsViewCommandline(b=True,
                                             S=True,
                                             h=True,
                                             input_file="-"),
+                    # samtoolscl,
                     samsort]
                 # Add custom parameters to a dictionary to be used in the bowtie2 alignment wrapper
                 indict = {'--very-sensitive-local': True,
@@ -211,8 +218,8 @@ class Sippr(object):
                 sample[self.analysistype].faifile = sample[self.analysistype].baitfile + '.fai'
                 samindex = SamtoolsFaidxCommandline(reference=sample[self.analysistype].baitfile)
                 # Add the commands (as strings) to the metadata
-                sample[self.analysistype].bowtie2align = str(bowtie2align)
-                sample[self.analysistype].bowtie2build = str(bowtie2build)
+                # sample[self.analysistype].bowtie2align = str(bowtie2align)
+                # sample[self.analysistype].bowtie2build = str(bowtie2build)
                 sample[self.analysistype].samindex = str(samindex)
                 # Add the commands to the queue. Note that the commands would usually be set as attributes of the sample
                 # but there was an issue with their serialization when printing out the metadata
@@ -223,7 +230,7 @@ class Sippr(object):
                     if stderrbowtieindex:
                         # Write the standard error to log, bowtie2 puts alignment summary here
                         with open(os.path.join(sample[self.analysistype].targetpath,
-                                               '{}_bowtie_index.log'.format(self.analysistype)), 'ab+') as log:
+                                               '{}_bowtie_index.log'.format(self.analysistype)), 'a+') as log:
                             log.writelines(logstr(bowtie2build, stderrbowtieindex.getvalue(),
                                                   stdoutbowtieindex.getvalue()))
                     # Close the stdout and stderr streams
@@ -245,7 +252,7 @@ class Sippr(object):
                 if stderrindex:
                     # Write the standard error to log, bowtie2 puts alignment summary here
                     with open(os.path.join(sample[self.analysistype].targetpath,
-                                           '{}_samtools_index.log'.format(self.analysistype)), 'ab+') as log:
+                                           '{}_samtools_index.log'.format(self.analysistype)), 'a+') as log:
                         log.writelines(logstr(samindex, stderrindex.getvalue(), stdoutindex.getvalue()))
                 # Close the stdout and stderr streams
                 stdoutindex.close()
@@ -257,8 +264,8 @@ class Sippr(object):
                 if stderr:
                     # Write the standard error to log, bowtie2 puts alignment summary here
                     with open(os.path.join(sample[self.analysistype].outputdir,
-                                           '{}_bowtie_samtools.log'.format(self.analysistype)), 'ab+') as log:
-                        log.writelines(logstr(bowtie2align, stderr.getvalue(), stdout.getvalue()))
+                                           '{}_bowtie_samtools.log'.format(self.analysistype)), 'a+') as log:
+                        log.writelines(logstr([bowtie2align], stderr.getvalue(), stdout.getvalue()))
                 stdout.close()
                 stderr.close()
             self.mapqueue.task_done()
@@ -292,7 +299,7 @@ class Sippr(object):
                 if stderr:
                     # Write the standard error to log
                     with open(os.path.join(sample[self.analysistype].outputdir,
-                                           '{}_samtools_bam_index.log'.format(self.analysistype)), 'ab+') as log:
+                                           '{}_samtools_bam_index.log'.format(self.analysistype)), 'a+') as log:
                         log.writelines(logstr(bamindex, stderr.getvalue(), stdout.getvalue()))
                 stderr.close()
             self.indexqueue.task_done()
@@ -309,7 +316,7 @@ class Sippr(object):
         for sample in self.runmetadata:
             if sample.general.bestassemblyfile != 'NA':
                 # Get the fai file into a dictionary to be used in parsing results
-                with open(sample[self.analysistype].faifile, 'rb') as faifile:
+                with open(sample[self.analysistype].faifile, 'r') as faifile:
                     for line in faifile:
                         data = line.split('\t')
                         try:
@@ -438,7 +445,7 @@ class Sippr(object):
 
     # noinspection PyDefaultArgument
     def __init__(self, inputobject, cutoff=0.98, matchbonus=2, builddict=dict(), extension='.bt2'):
-        from Queue import Queue
+        from queue import Queue
         self.path = inputobject.path
         self.sequencepath = inputobject.sequencepath
         self.targetpath = inputobject.targetpath

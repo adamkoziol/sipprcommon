@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-import os
-from accessoryfunctions.accessoryFunctions import MetadataObject, GenObject
+from sipprcommon.accessoryfunctions.accessoryFunctions import *
 
 # Import ElementTree - try first to import the faster C version, if that doesn't
 # work, try to import the regular version
@@ -43,7 +42,7 @@ class Metadata(object):
         important for the creation of the assembly report"""
         import copy
         # Open the sample sheet
-        with open(self.samplesheet, "rb") as samplesheet:
+        with open(self.samplesheet, "r") as samplesheet:
             # Iterate through the sample sheet
             samples, prev, header = False, 0, []
             for count, line in enumerate(samplesheet):

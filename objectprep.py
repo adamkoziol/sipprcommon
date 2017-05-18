@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 from sipprcommon.accessoryfunctions.accessoryFunctions import *
 # import createFastq
-import fastqCreator
-import createObject
+import sipprcommon.fastqCreator as fastqCreator
+import sipprcommon.createObject as createObject
 
 __author__ = 'adamkoziol'
 

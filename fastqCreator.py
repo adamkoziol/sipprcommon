@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 from glob import glob
-import runMetadata
-from offhours import Offhours
-from accessoryfunctions.accessoryFunctions import *
+import sipprcommon.runMetadata as runMetadata
+from sipprcommon.offhours import Offhours
+from sipprcommon.accessoryfunctions.accessoryFunctions import *
 # Import ElementTree - try first to import the faster C version, if that doesn't
 # work, try to import the regular version
 try:
@@ -30,7 +30,7 @@ class CreateFastq(object):
         indexlength = int()
         # bcl2fastq requires an older version of the sample sheet, this recreates the required version
         # Create the new sample sheet
-        with open(os.path.join(self.fastqdestination, 'SampleSheet_modified.csv'), "wb") as modifiedsamplesheet:
+        with open(os.path.join(self.fastqdestination, 'SampleSheet_modified.csv'), "w") as modifiedsamplesheet:
             # Write the required headings to the file
             modifiedsamplesheet.write(
                 "FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject\n")
@@ -339,4 +339,4 @@ if __name__ == '__main__':
     # Run the pipeline
     CreateFastq(arguments)
     # Print a bold, green exit statement
-    print '\033[92m' + '\033[1m' + "\nElapsed Time: %0.2f seconds" % (time() - arguments.starttime) + '\033[0m'
+    print('\033[92m' + '\033[1m' + "\nElapsed Time: %0.2f seconds" % (time() - arguments.starttime) + '\033[0m')

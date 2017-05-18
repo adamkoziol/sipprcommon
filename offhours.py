@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-from accessoryfunctions.accessoryFunctions import *
+from sipprcommon.accessoryfunctions.accessoryFunctions import *
 from glob import glob
-import os
 __author__ = 'adamkoziol'
 
 

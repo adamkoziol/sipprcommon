@@ -17,10 +17,10 @@ class _PipeArgumentList(_Argument):
         # do not appear merged.
         # e.g.:  samtools view -bS - | samtools sort -o out.sorted.bam -  [without leading pipe][Incorrect]
         #        | samtools view -bS - | samtools sort -o out.sorted.bam -  [with leading pipe][Correct]
-        if any(not isinstance(x, basestring) for x in self.value):
+        # if any(not isinstance(x, basestring) for x in self.value):
             # Correct for non-string commands.
             # e.g. command classes like Bio.Sequencing.Applications.SamtoolsViewCommandLine
-            self.value = map(str, self.value)
+        self.value = map(str, self.value)
         return "| " + " | ".join(self.value)
 
 
@@ -877,6 +877,6 @@ if __name__ == '__main__':
     samsortt = SamtoolsSortCommandline(input_bam="-", out_prefix=ubam[:-4])
     samtoolss = [SamtoolsViewCommandline(b=True, S=True, input_file="-"), samsortt]
     # print samtools
-    print Bowtie2CommandLine(bt2="test", m1="none", m2="yes", samtools=samtoolss)
+    # print Bowtie2CommandLine(bt2="test", m1="none", m2="yes", samtools=samtoolss)
     # print Bowtie2InspectCommandLine(bt2="test")
     pass
