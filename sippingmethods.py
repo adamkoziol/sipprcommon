@@ -217,8 +217,8 @@ class Sippr(object):
                 sample[self.analysistype].faifile = sample[self.analysistype].baitfile + '.fai'
                 samindex = SamtoolsFaidxCommandline(reference=sample[self.analysistype].baitfile)
                 # Add the commands (as strings) to the metadata
-                # sample[self.analysistype].bowtie2align = str(bowtie2align)
-                # sample[self.analysistype].bowtie2build = str(bowtie2build)
+                sample[self.analysistype].bowtie2align = str(bowtie2align)
+                sample[self.analysistype].bowtie2build = str(bowtie2build)
                 sample[self.analysistype].samindex = str(samindex)
                 # Add the commands to the queue. Note that the commands would usually be set as attributes of the sample
                 # but there was an issue with their serialization when printing out the metadata
