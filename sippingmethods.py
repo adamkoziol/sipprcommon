@@ -200,6 +200,7 @@ class Sippr(object):
                                             input_file="-"),
                     # samtoolscl,
                     samsort]
+                # print([samtools])
                 # Add custom parameters to a dictionary to be used in the bowtie2 alignment wrapper
                 indict = {'--very-sensitive-local': True,
                           # For short targets, the match bonus can be increased
@@ -217,8 +218,8 @@ class Sippr(object):
                 sample[self.analysistype].faifile = sample[self.analysistype].baitfile + '.fai'
                 samindex = SamtoolsFaidxCommandline(reference=sample[self.analysistype].baitfile)
                 # Add the commands (as strings) to the metadata
-                sample[self.analysistype].bowtie2align = str(bowtie2align)
-                sample[self.analysistype].bowtie2build = str(bowtie2build)
+                # sample[self.analysistype].bowtie2align = str(bowtie2align)
+                # sample[self.analysistype].bowtie2build = str(bowtie2build)
                 sample[self.analysistype].samindex = str(samindex)
                 # Add the commands to the queue. Note that the commands would usually be set as attributes of the sample
                 # but there was an issue with their serialization when printing out the metadata
