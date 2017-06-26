@@ -18,8 +18,8 @@ class _PipeArgumentList(_Argument):
         # e.g.:  samtools view -bS - | samtools sort -o out.sorted.bam -  [without leading pipe][Incorrect]
         #        | samtools view -bS - | samtools sort -o out.sorted.bam -  [with leading pipe][Correct]
         # if any(not isinstance(x, basestring) for x in self.value):
-            # Correct for non-string commands.
-            # e.g. command classes like Bio.Sequencing.Applications.SamtoolsViewCommandLine
+        # Correct for non-string commands.
+        # e.g. command classes like Bio.Sequencing.Applications.SamtoolsViewCommandLine
         self.value = map(str, self.value)
         return "| " + " | ".join(self.value)
 

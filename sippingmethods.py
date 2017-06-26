@@ -68,7 +68,6 @@ class Sippr(object):
                     sample[self.analysistype].baitedfastq = \
                         '{}/{}_targetMatches.fastq'.format(sample[self.analysistype].outputdir, self.analysistype)
         else:
-            printtime('Performing analysis with {} targets folder'.format(self.analysistype), self.start)
             # There is a relatively strict databasing scheme necessary for the custom targets. Eventually, there will
             # be a helper script to combine individual files into a properly formatted combined file
             try:
@@ -190,6 +189,7 @@ class Sippr(object):
                                             h=True,
                                             input_file="-"),
                     samsort]
+                # print([samtools])
                 # Add custom parameters to a dictionary to be used in the bowtie2 alignment wrapper
                 indict = {'--very-sensitive-local': True,
                           # For short targets, the match bonus can be increased
