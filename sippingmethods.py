@@ -3,8 +3,8 @@ from glob import glob
 from subprocess import call
 from threading import Thread
 from Bio.Sequencing.Applications import *
-from .accessoryfunctions.accessoryFunctions import *
-from .accessoryfunctions.metadataprinter import *
+from accessoryfunctions.accessoryFunctions import *
+from accessoryfunctions.metadataprinter import *
 from .bowtie import *
 from io import StringIO
 __author__ = 'adamkoziol'
@@ -175,19 +175,9 @@ class Sippr(object):
                                                        bt2=sample[self.analysistype].baitfilenoext,
                                                        **self.builddict)
                 # Use samtools wrapper to set up the bam sorting command
-                ''''''
                 samsort = SamtoolsSortCommandline(input=sample[self.analysistype].sortedbam,
                                                   o=True,
                                                   out_prefix="-")
-                # samsort.o = True,
-                # samsort.out_prefix = '-'
-                # samsort.input = sample[self.analysistype].sortedbam
-                # Create a list of programs to which data are piped as part of the reference mapping
-                # samtoolscl = SamtoolsViewCommandline()
-                # samtoolscl.b = True
-                # samtoolscl.S = True
-                # samtoolscl.h = True
-                # samtoolscl.input = '-'
                 samtools = [
                     # When bowtie2 maps reads to all possible locations rather than choosing a 'best' placement, the
                     # SAM header for that read is set to 'secondary alignment', or 256. Please see:
@@ -199,7 +189,6 @@ class Sippr(object):
                                             S=True,
                                             h=True,
                                             input_file="-"),
-                    # samtoolscl,
                     samsort]
                 # Add custom parameters to a dictionary to be used in the bowtie2 alignment wrapper
                 indict = {'--very-sensitive-local': True,
@@ -207,19 +196,17 @@ class Sippr(object):
                           '--ma': self.matchbonus,
                           '-U': sample[self.analysistype].baitedfastq,
                           '-a': True,
-                          '--threads': self.cpus,
+                          '--threads': self.threads,
                           '--local': True}
                 # Create the bowtie2 reference mapping command
                 bowtie2align = Bowtie2CommandLine(bt2=sample[self.analysistype].baitfilenoext,
-                                                  threads=self.cpus,
+                                                  threads=self.threads,
                                                   samtools=samtools,
                                                   **indict)
                 # Create the command to faidx index the bait file
                 sample[self.analysistype].faifile = sample[self.analysistype].baitfile + '.fai'
                 samindex = SamtoolsFaidxCommandline(reference=sample[self.analysistype].baitfile)
                 # Add the commands (as strings) to the metadata
-                # sample[self.analysistype].bowtie2align = str(bowtie2align)
-                # sample[self.analysistype].bowtie2build = str(bowtie2build)
                 sample[self.analysistype].samindex = str(samindex)
                 # Add the commands to the queue. Note that the commands would usually be set as attributes of the sample
                 # but there was an issue with their serialization when printing out the metadata
@@ -454,6 +441,7 @@ class Sippr(object):
         self.start = inputobject.starttime
         self.analysistype = inputobject.analysistype
         self.cpus = inputobject.cpus
+        self.threads = inputobject.threads
         self.pipeline = inputobject.pipeline
         self.homepath = inputobject.homepath
         self.taxonomy = inputobject.taxonomy
